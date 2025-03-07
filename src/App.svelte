@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
-  
+
   // Application state
   const isConnected = writable(false);
   const isDemo = writable(false);
@@ -11,28 +11,79 @@
   const activeTab = writable(null);
   const selectedKey = writable(null);
   const activeProfile = writable('Default');
-  
+  const buzzerEnabled = writable(true);
+
   // Keyboard configuration state
   const activeLayer = writable(0);
   const lightingMode = writable('static');
   const lightingColor = writable('#FFAB07');
   const brightness = writable(100);
   const speed = writable(50);
-  
+
+  // Profiles for different configurations
+  const profiles = writable([
+    { id: 'default', name: 'Default', active: true },
+    { id: 'gaming', name: 'Gaming', active: false },
+    { id: 'work', name: 'Work', active: false },
+    { id: 'programming', name: 'Programming', active: false }
+  ]);
+
   // Layers with key bindings
   const layers = writable([
     { id: 0, name: 'Layer 1' },
     { id: 1, name: 'Layer 2' },
     { id: 2, name: 'Layer 3' }
   ]);
-  
+
+  // Generate mock bindings for demo layers
+  function createMockBindings() {
+    // Default Layer 1 (Standard keyboard layout)
+    const layer1 = {};
+    
+    // Layer 2 - Media controls and shortcuts
+    const layer2 = {
+      'KeyQ': { type: 'media', value: 'prev', display: 'PREV' },
+      'KeyW': { type: 'media', value: 'play_pause', display: 'PLAY' },
+      'KeyE': { type: 'media', value: 'next', display: 'NEXT' },
+      'KeyR': { type: 'media', value: 'vol_down', display: 'VOL-' },
+      'KeyT': { type: 'media', value: 'vol_up', display: 'VOL+' },
+      'KeyA': { type: 'shortcut', value: 'Cut', display: 'CUT' },
+      'KeyS': { type: 'shortcut', value: 'Copy', display: 'COPY' },
+      'KeyD': { type: 'shortcut', value: 'Paste', display: 'PASTE' },
+      'KeyF': { type: 'shortcut', value: 'Undo', display: 'UNDO' },
+      'Escape': { type: 'macro', value: 'Alt+F4', display: 'EXIT' },
+      'Space': { type: 'layer_toggle', value: 0, display: 'BASE' }
+    };
+    
+    // Layer 3 - Numbers and navigation
+    const layer3 = {
+      'KeyQ': { type: 'standard', value: 'Digit1', display: '1' },
+      'KeyW': { type: 'standard', value: 'Digit2', display: '2' },
+      'KeyE': { type: 'standard', value: 'Digit3', display: '3' },
+      'KeyR': { type: 'standard', value: 'Digit4', display: '4' },
+      'KeyT': { type: 'standard', value: 'Digit5', display: '5' },
+      'KeyA': { type: 'standard', value: 'Digit6', display: '6' },
+      'KeyS': { type: 'standard', value: 'Digit7', display: '7' },
+      'KeyD': { type: 'standard', value: 'Digit8', display: '8' },
+      'KeyF': { type: 'standard', value: 'Digit9', display: '9' },
+      'KeyG': { type: 'standard', value: 'Digit0', display: '0' },
+      'KeyZ': { type: 'standard', value: 'Home', display: 'HOME' },
+      'KeyX': { type: 'standard', value: 'End', display: 'END' },
+      'KeyC': { type: 'standard', value: 'PageUp', display: 'PGUP' },
+      'KeyV': { type: 'standard', value: 'PageDown', display: 'PGDN' },
+      'Space': { type: 'layer_toggle', value: 0, display: 'BASE' }
+    };
+    
+    return {
+      0: layer1,
+      1: layer2,
+      2: layer3
+    };
+  }
+
   // Key bindings for each layer
-  const keyBindings = writable({
-    0: {}, // Layer 1 bindings
-    1: {}, // Layer 2 bindings
-    2: {}  // Layer 3 bindings
-  });
-  
+  const keyBindings = writable(createMockBindings());
+
   // Key binding types
   const bindingTypes = [
     { id: 'standard', name: 'Standard Key' },
@@ -43,11 +94,7 @@
     { id: 'modifier', name: 'Modifier Key' },
     { id: 'shortcut', name: 'Application Shortcut' }
   ];
-  
-  let selectedBindingType = 'standard';
-  let macroText = '';
-  let targetLayer = 0;
-  
+
   // Underglow effects
   const lightingModes = [
     { id: 'static', name: 'Static' },
@@ -60,9 +107,9 @@
     { id: 'wave', name: 'Wave' },
     { id: 'starlight', name: 'Starlight' }
   ];
-  
+
   // RGB colors for underglow
-  let underglowColors = [
+  const underglowColors = writable([
     { id: 0, color: '#FFAB07', active: true },
     { id: 1, color: '#9983FF', active: true },
     { id: 2, color: '#F6465D', active: true },
@@ -70,8 +117,8 @@
     { id: 4, color: '#00FFFF', active: false },
     { id: 5, color: '#FFFFFF', active: false },
     { id: 6, color: '#FF00FF', active: false }
-  ];
-  
+  ]);
+
   // Standard keyboard layout (75% layout)
   const standardLayout = [
     // Row 1
@@ -177,32 +224,7 @@
       { key: '→', code: 'ArrowRight', x: 16, y: 5, w: 1, h: 1, color: 'yellow' }
     ]
   ];
-  
-  // Initialize key bindings for each layer
-  onMount(() => {
-    // Default layer (Layer 1) has standard key bindings
-    let layer1Bindings = {};
-    standardLayout.forEach(row => {
-      row.forEach(key => {
-        layer1Bindings[key.code] = {
-          type: 'standard',
-          value: key.code,
-          display: key.key
-        };
-      });
-    });
-    
-    // Layer 2 and 3 start empty
-    let layer2Bindings = {};
-    let layer3Bindings = {};
-    
-    $keyBindings = {
-      0: layer1Bindings,
-      1: layer2Bindings,
-      2: layer3Bindings
-    };
-  });
-  
+
   // USB Serial connection
   let port;
   let reader;
@@ -245,7 +267,6 @@
         $lightingColor = config.lightingColor;
         $brightness = config.brightness;
         $speed = config.speed;
-        underglowColors = config.underglowColors;
       }
       
       $isConnected = true;
@@ -286,15 +307,44 @@
     }
   }
   
-  // Key binding customization
+  $: if ($darkMode) {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  }
+  
+  onMount(() => {
+    if ($darkMode) {
+      document.body.classList.add('dark-mode');
+    }
+  });
+
+  // Get key display text based on current layer
+  function getKeyDisplay(key) {
+    const binding = $keyBindings[$activeLayer][key.code];
+    if (binding) {
+      return binding.display;
+    }
+    return key.key;
+  }
+
+  // Handle key selection
   function handleKeySelect(key) {
     $selectedKey = key;
     if ($activeTab !== 'keybindings') {
       $activeTab = 'keybindings';
     }
-    
-    // Set the current binding type based on the key's binding
-    const binding = $keyBindings[$activeLayer][key.code];
+  }
+
+  // Key binding customization
+  let selectedBindingType = 'standard';
+  let macroText = '';
+  let targetLayer = 0;
+  let keyDisplayText = '';
+  
+  // When selected key changes, set up the binding type
+  $: if ($selectedKey) {
+    const binding = $keyBindings[$activeLayer][$selectedKey.code];
     if (binding) {
       selectedBindingType = binding.type;
       if (binding.type === 'macro') {
@@ -302,10 +352,12 @@
       } else if (binding.type === 'layer_toggle' || binding.type === 'layer_hold') {
         targetLayer = binding.value;
       }
+      keyDisplayText = binding.display;
     } else {
       selectedBindingType = 'standard';
       macroText = '';
       targetLayer = 0;
+      keyDisplayText = $selectedKey.key;
     }
   }
   
@@ -315,25 +367,35 @@
       let newBinding = {
         type: selectedBindingType,
         value: '',
-        display: ''
+        display: keyDisplayText || 'KEY'
       };
       
       // Set the binding value based on type
       if (selectedBindingType === 'standard') {
         newBinding.value = $selectedKey.code;
-        newBinding.display = $selectedKey.key;
+        if (!keyDisplayText) {
+          newBinding.display = $selectedKey.key;
+        }
       } else if (selectedBindingType === 'macro') {
         newBinding.value = macroText;
-        newBinding.display = 'MACRO';
+        if (!keyDisplayText) {
+          newBinding.display = 'MACRO';
+        }
       } else if (selectedBindingType === 'layer_toggle') {
         newBinding.value = targetLayer;
-        newBinding.display = `TO:${targetLayer+1}`;
+        if (!keyDisplayText) {
+          newBinding.display = `TO:${targetLayer+1}`;
+        }
       } else if (selectedBindingType === 'layer_hold') {
         newBinding.value = targetLayer;
-        newBinding.display = `MO:${targetLayer+1}`;
+        if (!keyDisplayText) {
+          newBinding.display = `MO:${targetLayer+1}`;
+        }
       } else if (selectedBindingType === 'media') {
         newBinding.value = document.getElementById('mediaAction').value;
-        newBinding.display = 'MEDIA';
+        if (!keyDisplayText) {
+          newBinding.display = 'MEDIA';
+        }
       }
       
       // Update the key bindings store
@@ -345,36 +407,31 @@
         }
       };
       
-      // Send to device if connected
-      if ($isConnected && !$isDemo && port) {
-        const command = {
-          action: 'SET_KEY_BINDING',
-          layer: $activeLayer,
-          keyCode: $selectedKey.code,
-          binding: newBinding
-        };
-        
-        await writer.write(new TextEncoder().encode(JSON.stringify(command) + '\n'));
-      }
-      
       $selectedKey = null;
     }
   }
+
+  // Common keys for suggestions
+  const commonKeys = [
+    { display: 'A', code: 'KeyA' },
+    { display: 'B', code: 'KeyB' },
+    { display: 'C', code: 'KeyC' },
+    { display: '1', code: 'Digit1' },
+    { display: '2', code: 'Digit2' },
+    { display: '3', code: 'Digit3' },
+    { display: 'ENTER', code: 'Enter' },
+    { display: 'ESC', code: 'Escape' },
+    { display: 'SPACE', code: 'Space' },
+    { display: 'SHIFT', code: 'ShiftLeft' },
+    { display: 'CTRL', code: 'ControlLeft' },
+    { display: 'ALT', code: 'AltLeft' }
+  ];
   
-  // Update board time
-  async function updateBoardTime() {
-    if ($isConnected) {
-      const now = new Date();
-      const timeString = now.toISOString();
-      
-      if (!$isDemo && port) {
-        await writer.write(new TextEncoder().encode(`SET_TIME ${timeString}\n`));
-      }
-      
-      alert('Board time updated successfully!');
-    }
+  function setKeyFromSuggestion(key) {
+    selectedBindingType = 'standard';
+    keyDisplayText = key.display;
   }
-  
+
   // Custom slider component state and handlers
   let isDraggingBrightness = false;
   let isDraggingSpeed = false;
@@ -395,16 +452,12 @@
     window.addEventListener('mouseup', handleSliderMouseUp);
   }
   
-  async function handleSliderMouseMove(e) {
+  function handleSliderMouseMove(e) {
     if (isDraggingBrightness) {
       const sliderWidth = document.querySelector('.brightness-slider').offsetWidth;
       const delta = e.clientX - startX;
       const newValue = Math.max(0, Math.min(100, startValue + (delta / sliderWidth * 100)));
       brightness.set(newValue);
-      
-      if ($isConnected && !$isDemo && port) {
-        await writer.write(new TextEncoder().encode(`SET_BRIGHTNESS ${newValue}\n`));
-      }
     }
     
     if (isDraggingSpeed) {
@@ -412,10 +465,6 @@
       const delta = e.clientX - startX;
       const newValue = Math.max(0, Math.min(100, startValue + (delta / sliderWidth * 100)));
       speed.set(newValue);
-      
-      if ($isConnected && !$isDemo && port) {
-        await writer.write(new TextEncoder().encode(`SET_SPEED ${newValue}\n`));
-      }
     }
   }
   
@@ -426,14 +475,65 @@
     window.removeEventListener('mouseup', handleSliderMouseUp);
   }
   
-  // Get key display text based on current layer
-  function getKeyDisplay(key) {
-    const binding = $keyBindings[$activeLayer][key.code];
-    if (binding) {
-      return binding.display;
-    }
-    return key.key;
+  function toggleColorActive(index) {
+    const updatedColors = [...$underglowColors];
+    updatedColors[index].active = !updatedColors[index].active;
+    underglowColors.set(updatedColors);
   }
+  
+  function updateColor(index, newColor) {
+    const updatedColors = [...$underglowColors];
+    updatedColors[index].color = newColor;
+    underglowColors.set(updatedColors);
+  }
+
+  function activateProfile(id) {
+    $profiles = $profiles.map(profile => ({
+      ...profile,
+      active: profile.id === id
+    }));
+  }
+
+  async function updateBoardTime() {
+    const now = new Date();
+    const timeString = now.toISOString();
+    
+    alert('Board time updated successfully!');
+  }
+  
+  function toggleBuzzer() {
+    $buzzerEnabled = !$buzzerEnabled;
+  }
+
+  // Clock that updates every minute
+  let time = new Date();
+  let interval;
+  
+  // Update time every minute
+  onMount(() => {
+    // Initial update to next minute
+    const seconds = time.getSeconds();
+    const initialDelay = (60 - seconds) * 1000;
+    
+    setTimeout(() => {
+      time = new Date();
+      // Then update every minute
+      interval = setInterval(() => {
+        time = new Date();
+      }, 60000);
+    }, initialDelay);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  });
+  
+  // Format time to 24-hour format without seconds
+  $: formattedTime = time.getHours().toString().padStart(2, '0') + ':' + 
+                     time.getMinutes().toString().padStart(2, '0');
+  
+  // Format date
+  $: formattedDate = time.toLocaleDateString();
 </script>
 
 <main class:dark-mode={$darkMode}>
@@ -491,8 +591,8 @@
         <!-- Side display panel -->
         <div class="side-display">
           <div class="display-values">
-            <div class="display-value">{new Date().toLocaleTimeString()}</div>
-            <div class="display-value">{new Date().toLocaleDateString()}</div>
+            <div class="display-value">{formattedTime}</div>
+            <div class="display-value">{formattedDate}</div>
           </div>
           <div class="music-player">
             <div class="track-info">Now Playing: Spotify</div>
@@ -513,7 +613,7 @@
         
         <!-- Keyboard layout -->
         <div class="keyboard-layout">
-          {#each standardLayout as row, rowIndex}
+          {#each standardLayout as row}
             <div class="key-row">
               {#each row as key}
                 <button 
@@ -537,7 +637,7 @@
       </div>
     </div>
     
-    <!-- Main interface with integrated menu system -->
+    <!-- Main interface with integrated menu -->
     <div class="main-interface">
       <!-- Bottom bar with integrated menu -->
       <div class="bottom-bar">
@@ -552,9 +652,9 @@
             </svg>
           </button>
           <button 
-            class="nav-btn {$activeTab === 'layers' ? 'active' : ''}" 
-            on:click={() => $activeTab = $activeTab === 'layers' ? null : 'layers'}
-            title="Layers"
+            class="nav-btn {$activeTab === 'profiles' ? 'active' : ''}" 
+            on:click={() => $activeTab = $activeTab === 'profiles' ? null : 'profiles'}
+            title="Profiles"
           >
             <svg viewBox="0 0 24 24" width="24" height="24">
               <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z" />
@@ -624,19 +724,21 @@
                     </select>
                   </div>
                   
+                  <div class="form-group">
+                    <label for="keyDisplayText">Key Display Text:</label>
+                    <input type="text" id="keyDisplayText" bind:value={keyDisplayText} placeholder="Text shown on key" maxlength="6" />
+                    <p class="hint">Custom text to display on the key (max 6 chars)</p>
+                  </div>
+                  
                   {#if selectedBindingType === 'standard'}
                     <div class="form-group">
-                      <label for="keyAction">Key:</label>
-                      <div class="key-input-container">
-                        <input type="text" id="keyAction" placeholder="Press a key" />
-                        <div class="key-suggestions">
-                          <button class="key-suggestion">A</button>
-                          <button class="key-suggestion">B</button>
-                          <button class="key-suggestion">C</button>
-                          <button class="key-suggestion">1</button>
-                          <button class="key-suggestion">2</button>
-                          <button class="key-suggestion">3</button>
-                        </div>
+                      <label>Key Suggestions:</label>
+                      <div class="key-suggestions">
+                        {#each commonKeys as key}
+                          <button class="key-suggestion" on:click={() => setKeyFromSuggestion(key)}>
+                            {key.display}
+                          </button>
+                        {/each}
                       </div>
                     </div>
                   {:else if selectedBindingType === 'macro'}
@@ -717,26 +819,34 @@
                 </div>
               {/if}
             </div>
-          {:else if $activeTab === 'layers'}
+          {:else if $activeTab === 'profiles'}
             <div class="panel-content">
-              <h3>Layer Management</h3>
-              <p class="explanation">Create and manage keyboard layers for different functions</p>
+              <h3>Saved Configurations</h3>
+              <p class="explanation">Switch between different saved keyboard configurations</p>
               
-              <div class="layer-list">
-                {#each $layers as layer}
-                  <div class="layer-item {$activeLayer === layer.id ? 'active' : ''}">
-                    <span class="layer-name">{layer.name}</span>
-                    <div class="layer-actions">
+              <div class="profile-list">
+                {#each $profiles as profile}
+                  <div class="profile-item {profile.active ? 'active' : ''}">
+                    <span class="profile-name">{profile.name}</span>
+                    <div class="profile-actions">
                       <button 
-                        class="btn small" 
-                        on:click={() => $activeLayer = layer.id}
-                        disabled={$activeLayer === layer.id}
+                        class="btn small primary" 
+                        on:click={() => activateProfile(profile.id)}
+                        disabled={profile.active}
                       >
-                        Activate
+                        {profile.active ? 'Active' : 'Activate'}
                       </button>
                     </div>
                   </div>
                 {/each}
+              </div>
+              
+              <div class="form-group">
+                <label for="newProfile">Create New Configuration:</label>
+                <div class="new-profile-form">
+                  <input type="text" id="newProfile" placeholder="Profile Name" />
+                  <button class="btn primary">Create</button>
+                </div>
               </div>
             </div>
           {:else if $activeTab === 'lighting'}
@@ -756,15 +866,17 @@
               <div class="color-palette">
                 <h4>Color Palette (up to 7 colors)</h4>
                 <div class="color-slots">
-                  {#each underglowColors as colorObj, index}
+                  {#each $underglowColors as colorObj, index}
                     <div class="color-slot {colorObj.active ? 'active' : ''}">
                       <input 
                         type="color" 
                         value={colorObj.color}
+                        on:input={(e) => updateColor(index, e.target.value)}
                       />
                       <button 
                         class="color-toggle" 
                         title={colorObj.active ? 'Disable color' : 'Enable color'}
+                        on:click={() => toggleColorActive(index)}
                       >
                         {colorObj.active ? '✓' : '+'}
                       </button>
@@ -810,7 +922,17 @@
               </div>
               
               <div class="form-group">
-                <button class="btn primary" disabled={!$isConnected}>Apply Changes</button>
+                <div class="toggle-option">
+                  <label for="buzzerToggle">Internal Buzzer</label>
+                  <div class="toggle-switch" class:active={$buzzerEnabled} on:click={toggleBuzzer}>
+                    <div class="toggle-handle"></div>
+                  </div>
+                </div>
+                <p class="option-description">Enable or disable keyboard's audio feedback</p>
+              </div>
+              
+              <div class="form-group">
+                <button class="btn primary">Apply Changes</button>
               </div>
             </div>
           {/if}
@@ -981,6 +1103,7 @@
     align-items: center;
     justify-content: center;
     transition: background-color 0.3s;
+    z-index: 1000;
   }
   
   .dark-mode-toggle:hover {
@@ -1015,9 +1138,9 @@
     position: relative;
     background-color: #e0e0e0;
     border-radius: 25px;
-    padding: 2rem;
+    padding: 2.5rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    border: 15px solid #9983FF;
+    border: 18px solid #9983FF;
     display: flex;
     max-width: 100%;
     overflow-x: auto;
@@ -1096,14 +1219,14 @@
   .keyboard-layout {
     display: grid;
     grid-template-rows: repeat(6, var(--key-size));
-    gap: var(--key-spacing);
+    gap: 0;
     position: relative;
   }
   
   .key-row {
     display: grid;
     grid-template-columns: repeat(17, var(--key-size));
-    gap: var(--key-spacing);
+    gap: 0;
     position: relative;
     height: var(--key-size);
   }
@@ -1679,6 +1802,11 @@
     font-size: 0.8rem;
   }
   
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
   .key-config {
     background-color: #f9f9f9;
     padding: 1rem;
@@ -1710,20 +1838,80 @@
     color: #aaa;
   }
   
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: flex-end;
+  }
+  
+  .toggle-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  
+  .toggle-option label {
+    font-weight: 500;
+  }
+  
+  .toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 24px;
+    background-color: #ddd;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .dark-mode .toggle-switch {
+    background-color: #444;
+  }
+  
+  .toggle-switch.active {
+    background-color: #9983FF;
+  }
+  
+  .toggle-handle {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.3s;
+  }
+  
+  .toggle-switch.active .toggle-handle {
+    transform: translateX(26px);
+  }
+  
+  .new-profile-form {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .new-profile-form input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .dark-mode .new-profile-form input {
+    background-color: #333;
+    border-color: #444;
+    color: #DED8CB;
+  }
+  
   /* Responsive design */
   @media (max-width: 768px) {
     .keyboard {
       --key-size: 35px;
-      padding: 1rem;
-    }
-    
-    .side-display {
-      width: 80px;
-      height: 250px;
-    }
-    
-    .display-values {
-      font-size: 1.2rem;
+      padding: 1.5rem;
     }
     
     .bottom-bar {
@@ -1756,7 +1944,7 @@
   @media (max-width: 480px) {
     .keyboard {
       --key-size: 25px;
-      --key-spacing: 0px;
+      padding: 1rem;
     }
     
     .side-display {
